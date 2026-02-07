@@ -1,7 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 
 import LandingPage from "./views/LandingPage";
 import Auth from "./views/Auth";
+
+import OAuthSuccess from "./views/OAuthSuccess";
+
+
 import Dashboard from "./views/Dashboard";
 import CareerRoadmap from "./views/CareerRoadmap";
 import TodoList from "./views/TodoList";
@@ -34,18 +38,37 @@ export default function App() {
   const [user, setUser] = useState(DEFAULT_PROFILE);
   const [tasks, setTasks] = useState([]);
 
-  /* LOAD */
+  /* ================= LOAD ================= */
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get("token");
+
+      // If OAuth token exists → switch to oauth view
+      if (token) {
+        setView("oauth");
+        return;
+      }
+
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (!saved) return;
+
       const data = JSON.parse(saved);
+
       setUser(data.user || DEFAULT_PROFILE);
       setTasks(data.tasks || []);
-      if (data.user?.onboarded) setView("dashboard");
+
+      if (data.user?.onboarded) {
+        setView("dashboard");
+      }
+
+    } catch (error) {
+      console.error("Corrupted storage. Resetting...");
+      localStorage.removeItem(STORAGE_KEY);
     }
   }, []);
 
-  /* SAVE */
+  /* ================= SAVE ================= */
   useEffect(() => {
     localStorage.setItem(
       STORAGE_KEY,
@@ -53,78 +76,87 @@ export default function App() {
     );
   }, [user, tasks]);
 
-  const renderView = () => {
-    switch (view) {
-      case "landing":
-        return <LandingPage onStart={() => setView("onboarding")} />;
+  /* ================= ROUTING ================= */
 
-      case "onboarding":
-        return (
-          <Auth
-            onComplete={(profile) => {
-              setUser({ ...profile, onboarded: true });
-              setView("dashboard");
-            }}
-          />
-        );
+  const views = useMemo(
+    () => ({
 
-      case "dashboard":
-        return <Dashboard user={user} />;
+      landing: (
+        <LandingPage onStart={() => setView("onboarding")} />
+      ),
 
-      case "roadmap":
-        return (
-          <CareerRoadmap
-            goal={user.careerGoal}
-            setView={setView}
-          />
-        );
+      onboarding: (
+        <Auth
+          onComplete={(profile) => {
+            setUser({ ...profile, onboarded: true });
+            setView("dashboard");
+          }}
+        />
+      ),
 
-      case "todo":
-        return <TodoList tasks={tasks} setTasks={setTasks} />;
+      oauth: (
+        <OAuthSuccess
+          setUser={setUser}
+          setView={setView}
+        />
+      ),
 
-      case "progress":
-        return <Progress tasks={tasks} />;
+      dashboard: <Dashboard user={user} />,
 
-      case "profile":
-        return <Profile user={user} setUser={setUser} />;
+      roadmap: (
+        <CareerRoadmap
+          goal={user.careerGoal}
+          setView={setView}
+        />
+      ),
 
-      case "report":
-        return <Report user={user} tasks={tasks} />;
+      todo: <TodoList tasks={tasks} setTasks={setTasks} />,
 
-      case "arts":
-        return <ArtsDetails onBack={() => setView("roadmap")} />;
+      progress: <Progress tasks={tasks} />,
 
-      case "commerce":
-        return <CommerceDetails onBack={() => setView("roadmap")} />;
+      profile: <Profile user={user} setUser={setUser} />,
 
-      case "science":
-        return <ScienceDetails onBack={() => setView("roadmap")} />;
+      report: <Report user={user} tasks={tasks} />,
 
-      case "law":
-        return <LawDetails onBack={() => setView("roadmap")} />;
+      arts: <ArtsDetails onBack={() => setView("roadmap")} />,
 
-      case "all":
-        return <AllStreamsDetails onBack={() => setView("roadmap")} />;
+      commerce: (
+        <CommerceDetails onBack={() => setView("roadmap")} />
+      ),
 
-      default:
-        return <LandingPage onStart={() => setView("onboarding")} />;
-    }
-  };
+      science: (
+        <ScienceDetails onBack={() => setView("roadmap")} />
+      ),
 
-  const showNav = view !== "landing" && view !== "onboarding";
+      law: <LawDetails onBack={() => setView("roadmap")} />,
+
+      all: (
+        <AllStreamsDetails onBack={() => setView("roadmap")} />
+      ),
+
+    }),
+    [user, tasks]
+  );
+
+  /* ================= NAV VISIBILITY ================= */
+
+  const showNav = !["landing", "onboarding", "oauth"].includes(view);
 
   return (
-    /* ✅ SINGLE HEIGHT + NO BODY SCROLL */
-    <div className="h-screen bg-slate-950 flex overflow-hidden">
-      {showNav && <Sidebar currentView={view} setView={setView} />}
+    <div className="h-screen flex overflow-hidden">
+
+      {showNav && (
+        <Sidebar currentView={view} setView={setView} />
+      )}
 
       <div className="flex-1 flex flex-col overflow-hidden">
+
         {showNav && <Header user={user} />}
 
-        {/* ✅ ONLY THIS SCROLLS */}
         <main className="flex-1 overflow-y-auto p-6 fade-in">
-          {renderView()}
+          {views[view] || views.landing}
         </main>
+
       </div>
     </div>
   );

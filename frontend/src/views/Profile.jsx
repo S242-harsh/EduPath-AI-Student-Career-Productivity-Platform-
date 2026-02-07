@@ -1,204 +1,217 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { Save, CheckCircle } from "lucide-react";
-
-/* ===================== CONSTANTS ===================== */
-
-const GOALS = ["Govt Job", "Private IT", "Higher Studies", "Business"];
-const INTERESTS = ["DSA", "Web", "Java", "Aptitude", "Data Science"];
-
-/* ===================== COMPONENT ===================== */
+import React, { useState, useEffect } from "react";
+import {
+  Save,
+  Upload,
+  Trash2,
+  Moon,
+  Sun,
+  Shield,
+} from "lucide-react";
 
 export default function Profile({ user, setUser }) {
-  const [local, setLocal] = useState(user);
+  const [form, setForm] = useState({
+    fullName: "",
+    email: "",
+    password: "",
+    theme: "dark",
+    language: "English",
+    photo: "",
+  });
+
   const [saved, setSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
 
-  /* ---------- Persist from storage ---------- */
+  /* ================= LOAD ================= */
   useEffect(() => {
-    const stored = localStorage.getItem("profile");
+    const stored = localStorage.getItem("account_settings");
     if (stored) {
-      setLocal(JSON.parse(stored));
-      setUser(JSON.parse(stored));
+      setForm(JSON.parse(stored));
+    } else {
+      setForm({
+        fullName: user?.fullName || "",
+        email: "",
+        password: "",
+        theme: "dark",
+        language: "English",
+        photo: "",
+      });
     }
-  }, [setUser]);
+  }, [user]);
 
-  /* ---------- Dirty check ---------- */
-  const isDirty = useMemo(
-    () => JSON.stringify(local) !== JSON.stringify(user),
-    [local, user]
-  );
-
-  /* ---------- Validation ---------- */
-  const isValid = useMemo(() => {
-    if (!local.fullName?.trim()) return false;
-    if (local.age && (local.age < 10 || local.age > 80)) return false;
-    return true;
-  }, [local]);
-
-  /* ---------- Handlers ---------- */
-  const toggleInterest = (item) => {
-    setLocal((prev) => ({
-      ...prev,
-      interests: prev.interests.includes(item)
-        ? prev.interests.filter((i) => i !== item)
-        : [...prev.interests, item],
-    }));
+  /* ================= SAVE ================= */
+  const saveSettings = () => {
+    localStorage.setItem("account_settings", JSON.stringify(form));
+    setUser({ ...user, fullName: form.fullName });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   };
 
-  const save = () => {
-    if (!isValid) {
-      setError("Please enter valid profile details.");
-      return;
-    }
+  /* ================= IMAGE UPLOAD ================= */
+  const handleImage = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-    setError("");
-    setSaving(true);
-
-    setTimeout(() => {
-      setUser(local);
-      localStorage.setItem("profile", JSON.stringify(local));
-      setSaving(false);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    }, 600);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setForm({ ...form, photo: reader.result });
+    };
+    reader.readAsDataURL(file);
   };
 
+  /* ================= UI ================= */
   return (
-    <div className="max-w-4xl mx-auto py-10 space-y-10">
+    <div className="max-w-5xl mx-auto py-12 space-y-12">
 
-      {/* ================= HEADER ================= */}
-      <header className="flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-bold">Profile Settings</h2>
-          <p className="text-slate-400 mt-1">
-            Update your personal and career preferences.
-          </p>
-        </div>
+      <h1 className="text-3xl font-bold">Account Settings</h1>
 
-        {saved && (
-          <span className="flex items-center gap-2 text-emerald-500 text-sm font-bold">
-            <CheckCircle size={16} /> Saved
-          </span>
-        )}
-      </header>
-
-      {/* ================= CARD ================= */}
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-10 space-y-10">
 
-        {/* BASIC INFO */}
-        <Section title="Basic Information">
+        {/* ================= PROFILE PHOTO ================= */}
+        <div className="flex items-center gap-8">
+          <div className="w-28 h-28 rounded-full overflow-hidden border border-slate-700">
+            {form.photo ? (
+              <img
+                src={form.photo}
+                alt="Profile"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-slate-500">
+                No Photo
+              </div>
+            )}
+          </div>
+
+          <label className="cursor-pointer flex items-center gap-2 bg-slate-800 px-4 py-2 rounded-xl hover:bg-slate-700 transition">
+            <Upload size={16} />
+            Upload Photo
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImage}
+              className="hidden"
+            />
+          </label>
+        </div>
+
+        {/* ================= BASIC INFO ================= */}
+        <div className="grid md:grid-cols-2 gap-6">
           <Input
             label="Full Name"
-            value={local.fullName}
-            onChange={(v) => setLocal({ ...local, fullName: v })}
+            value={form.fullName}
+            onChange={(v) => setForm({ ...form, fullName: v })}
           />
+
           <Input
-            label="City"
-            value={local.city}
-            onChange={(v) => setLocal({ ...local, city: v })}
+            label="Email"
+            type="email"
+            value={form.email}
+            onChange={(v) => setForm({ ...form, email: v })}
           />
+        </div>
+
+        {/* ================= PASSWORD ================= */}
+        <div className="grid md:grid-cols-2 gap-6">
           <Input
-            label="Age"
-            type="number"
-            value={local.age}
-            onChange={(v) => setLocal({ ...local, age: v })}
+            label="New Password"
+            type="password"
+            value={form.password}
+            onChange={(v) => setForm({ ...form, password: v })}
           />
-        </Section>
+        </div>
 
-        {/* CAREER GOAL */}
-        <Section title="Career Goal">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {GOALS.map((g) => (
-              <button
-                key={g}
-                onClick={() => setLocal({ ...local, careerGoal: g })}
-                className={`p-4 rounded-xl border transition
-                  ${
-                    local.careerGoal === g
-                      ? "bg-emerald-500 text-slate-950 border-emerald-500"
-                      : "bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700"
-                  }`}
-              >
-                {g}
-              </button>
-            ))}
+        {/* ================= PREFERENCES ================= */}
+        <div className="space-y-6">
+          <h3 className="text-xl font-bold">Preferences</h3>
+
+          {/* Theme */}
+          <div className="flex items-center justify-between bg-slate-950 border border-slate-800 p-5 rounded-xl">
+            <span className="flex items-center gap-2">
+              {form.theme === "dark" ? <Moon size={18} /> : <Sun size={18} />}
+              Theme
+            </span>
+
+            <button
+              onClick={() =>
+                setForm({
+                  ...form,
+                  theme: form.theme === "dark" ? "light" : "dark",
+                })
+              }
+              className="bg-emerald-500 text-slate-950 px-4 py-2 rounded-lg font-semibold"
+            >
+              {form.theme === "dark" ? "Dark" : "Light"}
+            </button>
           </div>
-        </Section>
 
-        {/* INTERESTS */}
-        <Section title="Interests">
-          <div className="flex flex-wrap gap-3">
-            {INTERESTS.map((i) => (
-              <button
-                key={i}
-                onClick={() => toggleInterest(i)}
-                className={`px-5 py-2 rounded-full border transition
-                  ${
-                    local.interests.includes(i)
-                      ? "bg-emerald-500 text-slate-950 border-emerald-500"
-                      : "bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700"
-                  }`}
-              >
-                {i}
-              </button>
-            ))}
+          {/* Language */}
+          <div className="flex items-center justify-between bg-slate-950 border border-slate-800 p-5 rounded-xl">
+            <span>Language</span>
+            <select
+              value={form.language}
+              onChange={(e) =>
+                setForm({ ...form, language: e.target.value })
+              }
+              className="bg-slate-800 px-4 py-2 rounded-lg"
+            >
+              <option>English</option>
+              <option>Hindi</option>
+            </select>
           </div>
-        </Section>
+        </div>
 
-        {/* ERROR */}
-        {error && (
-          <p className="text-sm text-red-400 font-semibold">{error}</p>
-        )}
+        {/* ================= SAVE ================= */}
+        <div className="flex justify-between items-center pt-6 border-t border-slate-800">
 
-        {/* SAVE */}
-        <div className="pt-6 border-t border-slate-800 flex justify-end">
           <button
-            onClick={save}
-            disabled={!isDirty || !isValid || saving}
-            className={`px-8 py-4 rounded-xl font-bold flex items-center gap-3 transition
-              ${
-                !isDirty || !isValid || saving
-                  ? "bg-slate-700 text-slate-400 cursor-not-allowed"
-                  : "bg-emerald-500 hover:bg-emerald-400 text-slate-950"
-              }`}
+            onClick={saveSettings}
+            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-6 py-3 rounded-xl font-bold"
           >
             <Save size={18} />
-            {saving ? "Saving..." : "Save Changes"}
+            Save Changes
           </button>
+
+          {saved && (
+            <span className="text-emerald-500 font-semibold">
+              Settings Saved ✔
+            </span>
+          )}
         </div>
       </div>
-    </div>
-  );
-}
 
-/* ===================== UI HELPERS ===================== */
+      {/* ================= DANGER ZONE ================= */}
+      <div className="bg-red-500/10 border border-red-500/20 rounded-3xl p-8">
+        <h3 className="text-lg font-bold text-red-400 mb-4">
+          Danger Zone
+        </h3>
 
-function Section({ title, children }) {
-  return (
-    <div className="space-y-6">
-      <h3 className="text-xl font-bold text-emerald-400">
-        {title}
-      </h3>
-      <div className="grid md:grid-cols-2 gap-6">
-        {children}
+        <button
+          className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-xl font-bold"
+          onClick={() => {
+            localStorage.clear();
+            window.location.reload();
+          }}
+        >
+          <Trash2 size={18} />
+          Delete Account
+        </button>
       </div>
     </div>
   );
 }
+
+/* ================= INPUT COMPONENT ================= */
 
 function Input({ label, value, onChange, type = "text" }) {
   return (
     <div>
-      <label className="text-xs font-bold text-slate-500 uppercase">
+      <label className="text-xs uppercase text-slate-400 font-bold">
         {label}
       </label>
       <input
         type={type}
-        value={value ?? ""}
+        value={value || ""}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full mt-2 bg-slate-950 border border-slate-800 rounded-xl
-          px-4 py-3 focus:outline-none focus:border-emerald-500"
+        className="w-full mt-2 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 focus:outline-none focus:border-emerald-500"
       />
     </div>
   );

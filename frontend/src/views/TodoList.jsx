@@ -1,78 +1,61 @@
-import React, { useReducer, useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Plus, Trash2, Check, Edit2 } from "lucide-react";
 
-/* ===================== REDUCER ===================== */
-
-function reducer(state, action) {
-  switch (action.type) {
-    case "ADD":
-      return [action.payload, ...state];
-
-    case "TOGGLE":
-      return state.map((t) =>
-        t.id === action.id ? { ...t, completed: !t.completed } : t
-      );
-
-    case "DELETE":
-      return state.filter((t) => t.id !== action.id);
-
-    case "EDIT":
-      return state.map((t) =>
-        t.id === action.id ? { ...t, text: action.text } : t
-      );
-
-    default:
-      return state;
-  }
-}
-
-/* ===================== COMPONENT ===================== */
-
 export default function TodoList({ tasks, setTasks }) {
-  const [state, dispatch] = useReducer(reducer, tasks || []);
   const [text, setText] = useState("");
   const [filter, setFilter] = useState("all");
 
-  /* ---------- Persist to parent & localStorage ---------- */
-  useEffect(() => {
-    setTasks(state);
-    localStorage.setItem("todos", JSON.stringify(state));
-  }, [state, setTasks]);
-
   /* ---------- Derived values ---------- */
   const completedCount = useMemo(
-    () => state.filter((t) => t.completed).length,
-    [state]
+    () => tasks.filter((t) => t.completed).length,
+    [tasks]
   );
 
   const filteredTasks = useMemo(() => {
-    if (filter === "active") return state.filter((t) => !t.completed);
-    if (filter === "completed") return state.filter((t) => t.completed);
-    return state;
-  }, [state, filter]);
+    if (filter === "active") return tasks.filter((t) => !t.completed);
+    if (filter === "completed") return tasks.filter((t) => t.completed);
+    return tasks;
+  }, [tasks, filter]);
 
   /* ---------- Handlers ---------- */
   const addTask = (e) => {
     e.preventDefault();
     if (!text.trim()) return;
 
-    dispatch({
-      type: "ADD",
-      payload: {
-        id: crypto.randomUUID(),
-        text,
-        completed: false,
-        time: new Date().toLocaleString(),
-      },
-    });
+    const newTask = {
+      id: crypto.randomUUID(),
+      text,
+      completed: false,
+      time: new Date().toLocaleString(),
+    };
 
+    setTasks([newTask, ...tasks]);
     setText("");
+  };
+
+  const toggleTask = (id) => {
+    setTasks(
+      tasks.map((t) =>
+        t.id === id ? { ...t, completed: !t.completed } : t
+      )
+    );
+  };
+
+  const deleteTask = (id) => {
+    setTasks(tasks.filter((t) => t.id !== id));
+  };
+
+  const editTask = (id, newText) => {
+    setTasks(
+      tasks.map((t) =>
+        t.id === id ? { ...t, text: newText } : t
+      )
+    );
   };
 
   return (
     <div className="max-w-3xl mx-auto py-10 space-y-10">
-
-      {/* ================= HEADER ================= */}
+      {/* HEADER */}
       <header className="flex justify-between items-end">
         <div>
           <h2 className="text-3xl font-bold">Today's Tasks</h2>
@@ -83,7 +66,7 @@ export default function TodoList({ tasks, setTasks }) {
 
         <div className="text-right">
           <p className="text-4xl font-bold text-emerald-500">
-            {completedCount}/{state.length}
+            {completedCount}/{tasks.length}
           </p>
           <p className="text-xs text-slate-500 uppercase font-bold">
             Completed
@@ -91,7 +74,7 @@ export default function TodoList({ tasks, setTasks }) {
         </div>
       </header>
 
-      {/* ================= INPUT ================= */}
+      {/* INPUT */}
       <form onSubmit={addTask} className="relative">
         <input
           value={text}
@@ -107,7 +90,7 @@ export default function TodoList({ tasks, setTasks }) {
         </button>
       </form>
 
-      {/* ================= FILTERS ================= */}
+      {/* FILTERS */}
       <div className="flex gap-3">
         {["all", "active", "completed"].map((f) => (
           <button
@@ -125,7 +108,7 @@ export default function TodoList({ tasks, setTasks }) {
         ))}
       </div>
 
-      {/* ================= TASK LIST ================= */}
+      {/* TASK LIST */}
       <div className="space-y-4">
         {filteredTasks.length === 0 && (
           <div className="text-center py-20 text-slate-500">
@@ -134,7 +117,13 @@ export default function TodoList({ tasks, setTasks }) {
         )}
 
         {filteredTasks.map((task) => (
-          <TaskItem key={task.id} task={task} dispatch={dispatch} />
+          <TaskItem
+            key={task.id}
+            task={task}
+            toggleTask={toggleTask}
+            deleteTask={deleteTask}
+            editTask={editTask}
+          />
         ))}
       </div>
     </div>
@@ -143,13 +132,13 @@ export default function TodoList({ tasks, setTasks }) {
 
 /* ===================== TASK ITEM ===================== */
 
-function TaskItem({ task, dispatch }) {
+function TaskItem({ task, toggleTask, deleteTask, editTask }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(task.text);
 
   const saveEdit = () => {
     if (!value.trim()) return;
-    dispatch({ type: "EDIT", id: task.id, text: value });
+    editTask(task.id, value);
     setEditing(false);
   };
 
@@ -164,7 +153,7 @@ function TaskItem({ task, dispatch }) {
     >
       <div className="flex items-center gap-5 flex-1">
         <button
-          onClick={() => dispatch({ type: "TOGGLE", id: task.id })}
+          onClick={() => toggleTask(task.id)}
           className={`w-8 h-8 rounded-xl border-2 flex items-center justify-center
             ${
               task.completed
@@ -209,7 +198,7 @@ function TaskItem({ task, dispatch }) {
         </button>
 
         <button
-          onClick={() => dispatch({ type: "DELETE", id: task.id })}
+          onClick={() => deleteTask(task.id)}
           className="p-3 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition"
         >
           <Trash2 size={20} />
